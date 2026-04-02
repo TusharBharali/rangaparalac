@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rangapara Camera Installation Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --panel: #0f1628;
+    --border: #1e2d4a;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --danger: #ff4757;
+    --warn: #ffa502;
+    --text: #c8d8f0;
+    --muted: #4a6080;
+    --done-bg: rgba(0,255,157,0.08);
+    --done-border: rgba(0,255,157,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+  /* Header */
+  header {
+    padding: 24px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .header-left { display: flex; flex-direction: column; gap: 4px; }
+
+  .logo-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), #0066aa);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 20px rgba(0,212,255,0.3);
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-left: 52px;
+  }
+
+  /* Stats Bar */
+  .stats-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 22px;
+    flex: 1;
+    min-width: 130px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .stat-card.total::before { background: var(--accent); }
+  .stat-card.done::before { background: var(--accent2); }
+  .stat-card.pending::before { background: var(--danger); }
+  .stat-card.progress::before { background: var(--warn); }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .stat-value {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+  }
+
+  .stat-card.done .stat-value { color: var(--accent2); }
+  .stat-card.pending .stat-value { color: var(--danger); }
+  .stat-card.progress .stat-value { color: var(--warn); }
+
+  /* Progress bar */
+  .progress-track {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 22px;
+    margin-bottom: 20px;
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .progress-bar-outer {
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 4px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(0,255,157,0.4);
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+    align-items: center;
+  }
+
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  input[type="text"], select {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 10px 14px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-wrap input[type="text"] {
+    width: 100%;
+    padding-left: 36px;
+  }
+
+  input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+  }
+
+  select { cursor: pointer; min-width: 160px; }
+  select option { background: var(--panel); }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 10px 18px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.05); }
+
+  .btn-export {
+    background: linear-gradient(135deg, #00aa55, #007744);
+    border-color: var(--accent2);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(0,255,157,0.2);
+  }
+
+  .btn-export:hover {
+    background: linear-gradient(135deg, #00cc66, #009955);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(0,255,157,0.35);
+  }
+
+  /* Worker tabs */
+  .worker-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .worker-tab {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    padding: 8px 16px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .worker-tab .badge {
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .worker-tab:hover { border-color: var(--accent); color: var(--accent); }
+
+  .worker-tab.active {
+    background: rgba(0,212,255,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .worker-tab .badge.done-badge {
+    background: rgba(0,255,157,0.15);
+    color: var(--accent2);
+  }
+
+  /* Table */
+  .table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .table-header-row {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .table-header-row span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .scroll-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    background: rgba(0,0,0,0.3);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+
+  thead th:last-child { text-align: center; }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,45,74,0.5);
+    transition: background 0.15s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(0,212,255,0.04); }
+  tbody tr.is-done { background: var(--done-bg); }
+  tbody tr.is-done:hover { background: rgba(0,255,157,0.1); }
+
+  td {
+    padding: 12px 16px;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+
+  .part-no {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+    width: 70px;
+  }
+
+  .part-name {
+    font-weight: 500;
+    color: var(--text);
+    max-width: 380px;
+  }
+
+  .is-done .part-name { color: rgba(200,216,240,0.6); }
+
+  .worker-name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  .worker-PRONOY { color: #ff9f43; }
+  .worker-ABHISEKH { color: #54a0ff; }
+  .worker-ABHIJIT { color: #a29bfe; }
+  .worker-NILOTPAL { color: #fd79a8; }
+
+  .done-cell { text-align: center; width: 120px; }
+
+  .toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .toggle-btn:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    background: rgba(0,255,157,0.06);
+  }
+
+  .toggle-btn.done-btn {
+    border-color: var(--done-border);
+    color: var(--accent2);
+    background: rgba(0,255,157,0.1);
+    box-shadow: 0 0 8px rgba(0,255,157,0.15);
+  }
+
+  .toggle-btn.done-btn:hover {
+    background: rgba(255,71,87,0.1);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  .done-tick { font-size: 14px; }
+
+  .empty-state {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 16px;
+    letter-spacing: 1px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    max-width: 320px;
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .toast.green { border-color: var(--accent2); color: var(--accent2); }
+  .toast.red { border-color: var(--danger); color: var(--danger); }
+  .toast.blue { border-color: var(--accent); color: var(--accent); }
+
+  /* Select all row */
+  .bulk-bar {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .bulk-bar span {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  .btn-sm {
+    padding: 6px 14px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+
+  @media (max-width: 700px) {
+    h1 { font-size: 18px; }
+    .stat-card { min-width: 100px; padding: 10px 14px; }
+    .stat-value { font-size: 22px; }
+    td, th { padding: 10px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-left">
+      <div class="logo-line">
+        <div class="logo-icon">📷</div>
+        <h1>Rangapara Camera Tracker</h1>
+      </div>
+      <div class="subtitle">Installation Status Dashboard — 214 Sites</div>
+    </div>
+    <button class="btn btn-export" onclick="exportXLSX()">
+      ⬇ Download Updated XLSX
+    </button>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-card total">
+      <div class="stat-label">Total Sites</div>
+      <div class="stat-value" id="stat-total">214</div>
+    </div>
+    <div class="stat-card done">
+      <div class="stat-label">Cameras Done</div>
+      <div class="stat-value" id="stat-done">0</div>
+    </div>
+    <div class="stat-card pending">
+      <div class="stat-label">Pending</div>
+      <div class="stat-value" id="stat-pending">214</div>
+    </div>
+    <div class="stat-card progress">
+      <div class="stat-label">Completion</div>
+      <div class="stat-value" id="stat-pct">0%</div>
+    </div>
+  </div>
+
+  <div class="progress-track">
+    <div class="progress-header">
+      <span>Overall Progress</span>
+      <span id="prog-label">0 / 214 cameras installed</span>
+    </div>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner" id="prog-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Worker Tabs -->
+  <div class="worker-tabs" id="worker-tabs"></div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search" placeholder="Search by location name or part no..." oninput="renderTable()">
+    </div>
+    <select id="filter-status" onchange="renderTable()">
+      <option value="all">All Status</option>
+      <option value="done">Done</option>
+      <option value="pending">Pending</option>
+    </select>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div class="table-header-row">
+      <span id="row-count">Showing 214 entries</span>
+      <span id="filtered-stats"></span>
+    </div>
+    <div class="scroll-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Part No</th>
+            <th>Location / Part Name</th>
+            <th>Assigned To</th>
+            <th>Camera Done</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty-state" id="empty-state" style="display:none">No matching records found</div>
+    </div>
+    <div class="bulk-bar">
+      <span id="bulk-label">Bulk Actions for visible rows:</span>
+      <button class="btn btn-sm" onclick="markVisibleAs(true)">✅ Mark All Done</button>
+      <button class="btn btn-sm" onclick="markVisibleAs(false)">❌ Mark All Pending</button>
+      <button class="btn btn-sm" style="margin-left:auto;border-color:#ff4757;color:#ff4757;" onclick="resetAllState()">🗑 Reset Worker</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const RAW = [{"PART NO":1,"PART NAME":"SAMABAI L. P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":2,"PART NAME":"SAMABAI L. P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":3,"PART NAME":"DAFALABIL L.P. SCHOOL NEW BULLDING","Name":"ABHISEKH","Camera Done":""},{"PART NO":4,"PART NAME":"PHULOGURI L.P. SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":5,"PART NAME":"AMLOGA BORO M.E. SCHOOL (WEST)","Name":"NILOTPAL","Camera Done":""},{"PART NO":6,"PART NAME":"AMLOGA BORO M.E. SCHOOL (EAST)","Name":"NILOTPAL","Camera Done":""},{"PART NO":7,"PART NAME":"AMLOGA BORO M.E. SCHOOL (MIDDLE)","Name":"NILOTPAL","Camera Done":""},{"PART NO":8,"PART NAME":"OJULI RANGAGORA L P SCHOOL (WEST)","Name":"NILOTPAL","Camera Done":""},{"PART NO":9,"PART NAME":"OJULI RANGAGORA L P SCHOOL (EAST)","Name":"NILOTPAL","Camera Done":""},{"PART NO":10,"PART NAME":"BOGIJULI HIGH SCHOOL","Name":"NILOTPAL","Camera Done":""},{"PART NO":11,"PART NAME":"BOGIJULI MV SCHOOL (MIDDLE)","Name":"NILOTPAL","Camera Done":""},{"PART NO":12,"PART NAME":"BOGIJULI MV SCHOOL (WEST)","Name":"NILOTPAL","Camera Done":""},{"PART NO":13,"PART NAME":"BOGIJULI MV SCHOOL (EAST)","Name":"NILOTPAL","Camera Done":""},{"PART NO":14,"PART NAME":"JAMUNBIL L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":15,"PART NAME":"NO. 1 GERGUAJULI L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":16,"PART NAME":"MAINAOSRI L P SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":17,"PART NAME":"DHOLKOBA T.E. L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":18,"PART NAME":"SONAJULI T.G. L.P. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":19,"PART NAME":"MUKTIYODDHA HEMLAL KALINDI ADARSHA BIDYALAY, SONAJULI T.E","Name":"ABHISEKH","Camera Done":""},{"PART NO":20,"PART NAME":"SONAJULI TG L P SCHOOL (MIDDLE)","Name":"ABHISEKH","Camera Done":""},{"PART NO":21,"PART NAME":"SONAJULI L P SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":22,"PART NAME":"BORJULI L P SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":23,"PART NAME":"BORJULI L P SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":24,"PART NAME":"BORJULI M E SCHOOL (NORTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":25,"PART NAME":"BORJULI M E SCHOOL (SOUTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":26,"PART NAME":"BORJULI T.E. STAFF CLUB HOUSE","Name":"ABHISEKH","Camera Done":""},{"PART NO":27,"PART NAME":"KOLONI T.E. STAFF CLUB","Name":"ABHISEKH","Camera Done":""},{"PART NO":28,"PART NAME":"KOLONI TG L.P. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":29,"PART NAME":"KOLONI TG L.P. SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":30,"PART NAME":"KACHARIGAON L P SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":31,"PART NAME":"KACHARIGAON MAZDOOR CANTEEN HOUSE","Name":"ABHISEKH","Camera Done":""},{"PART NO":32,"PART NAME":"KACHARIGAON L P SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":33,"PART NAME":"THAKURBARI TG L.P. SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":34,"PART NAME":"THAKURBARI T.E. LABOUR CLUB","Name":"ABHISEKH","Camera Done":""},{"PART NO":35,"PART NAME":"RANGAPARA TG L.P. SCHOOL (NORTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":36,"PART NAME":"RANGAPARA TG L.P. SCHOOL (SOUTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":37,"PART NAME":"GHIORALI TG L.P. SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":38,"PART NAME":"GHOIRALI T.E. STAFF CLUB HOUSE (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":39,"PART NAME":"GHAIRALI T.E. STAFF CLUB HOUSE (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":40,"PART NAME":"BHELOWATER L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":41,"PART NAME":"BHELOWATER L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":42,"PART NAME":"NO 2 BAHUMARI L P SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":43,"PART NAME":"DHULAPADUNG T.E. STAFF CLUB HOUSE.","Name":"ABHISEKH","Camera Done":""},{"PART NO":44,"PART NAME":"CRECHE HOUSE DHULAPADUNG T.E.","Name":"ABHISEKH","Camera Done":""},{"PART NO":45,"PART NAME":"DHULAPADUNG TG JUNGLE LINE L P SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":46,"PART NAME":"DHULAPADUNG TG JUNGLE LINE L P SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":47,"PART NAME":"MAINAJULI TG L.P. SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":48,"PART NAME":"MAINAJULI TG L.P. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":49,"PART NAME":"RUPAJULI TG L P SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":50,"PART NAME":"RUPAJULI TE MODEL SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":51,"PART NAME":"AMTAL LP SCHOOL(EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":52,"PART NAME":"AMTAL LP SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":53,"PART NAME":"24 NO RANGAPARA PARTHAMIK VIDYALAYA(EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":54,"PART NAME":"24 NO RANGAPARA PARTHAMIK VIDYALAYA (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":55,"PART NAME":"RANGAPARA LABOUR WELFARE OFFICE (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":56,"PART NAME":"RANGAPARA LABOUR WELFARE OFFICE (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":57,"PART NAME":"RANGAPARA H. S. SCHOOL (SOUTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":58,"PART NAME":"RANGAPARA H. S. SCHOOL (NORTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":59,"PART NAME":"RANGAPARA H.S. SCHOOL (MIDDLE)","Name":"ABHISEKH","Camera Done":""},{"PART NO":60,"PART NAME":"RANGAPARA H. S. SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":61,"PART NAME":"NO 2 RANGAPARA BENGALI PARTHAMIK VIDYALAYA (NORTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":62,"PART NAME":"NO 2 RANGAPARA BENGALI PARTHAMIK VIDYALAYA (SOUTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":63,"PART NAME":"RANGAPARA BENGALI HIGH SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":64,"PART NAME":"RANGAPARA BENGALI HIGH SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":65,"PART NAME":"RANGAPARA BENGALI HIGH SCHOOL (MIDDLE)","Name":"ABHISEKH","Camera Done":""},{"PART NO":66,"PART NAME":"RANGAPARA M.V. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":67,"PART NAME":"RANGAPARA M. V. SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":68,"PART NAME":"PHULOGURI NEPALIPAM LP SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":69,"PART NAME":"PHULOGURI GAON PANCHAYAT OFFICE","Name":"ABHISEKH","Camera Done":""},{"PART NO":70,"PART NAME":"2 NO. BAHUMARI LP SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":71,"PART NAME":"PHULOGURI GOVT. JB SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":72,"PART NAME":"AURABINDA VIDYAPITH L P SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":73,"PART NAME":"RAJENDRAJYOTI BIDYAN MANDIR. M.E. SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":74,"PART NAME":"ANIL MOJAMIL L P SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":75,"PART NAME":"HATIBARI TG L.P. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":76,"PART NAME":"HATIBARI TG L.P. SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":77,"PART NAME":"RANGAPARA GAON PANCHAYAT OFFICE","Name":"ABHISEKH","Camera Done":""},{"PART NO":78,"PART NAME":"NAMONIGAON L.P. SCHOOL (EAST) NEW BUILDING","Name":"ABHISEKH","Camera Done":""},{"PART NO":79,"PART NAME":"NAMONIGAON L.P. SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":80,"PART NAME":"NAMONIGAON M.E. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":81,"PART NAME":"NO. 3 NAMANIGOAN MILLAN PALLY L P SCHOOL ( EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":82,"PART NAME":"NO. 3 NAMANIGON MILLAN PALLY LP SCHOOL ( WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":83,"PART NAME":"PHULBARI TG L.P. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":84,"PART NAME":"PHULBARI TG L.P. SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":85,"PART NAME":"PANIPOTA TG L.P. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":86,"PART NAME":"PANIPOTA TG L.P. SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":87,"PART NAME":"PANIPOTA LABOUR CLUB","Name":"ABHISEKH","Camera Done":""},{"PART NO":88,"PART NAME":"PANIPOTA NO 24 L P SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":89,"PART NAME":"GOVT MODEL COLLGE BALIPARA BAMGAON","Name":"ABHIJIT ","Camera Done":""},{"PART NO":90,"PART NAME":"NO. 2 MOLAN PUKHURI L.P. SCHOOL (EAST)","Name":"ABHIJIT ","Camera Done":""},{"PART NO":91,"PART NAME":"NO. 2 MOLAN PUKHURI L.P. SCHOOL (WEST)","Name":"ABHIJIT","Camera Done":""},{"PART NO":92,"PART NAME":"BALIPARA G. P. OFFICE","Name":"ABHIJIT","Camera Done":""},{"PART NO":93,"PART NAME":"KHELMATI ADABARI ME SCHOOL (EAST)","Name":"ABHIJIT","Camera Done":""},{"PART NO":94,"PART NAME":"KHELMATI ADABARI ME SCHOOL (WEST)","Name":"ABHIJIT","Camera Done":""},{"PART NO":95,"PART NAME":"KHELMATI ADABARI ME SCHOOL (NORTH)","Name":"ABHIJIT","Camera Done":""},{"PART NO":96,"PART NAME":"BALIPRA TG LP SCHOOL","Name":"ABHIJIT ","Camera Done":""},{"PART NO":97,"PART NAME":"BALIPRA T.E. LABOUR CLUB","Name":"ABHIJIT","Camera Done":""},{"PART NO":98,"PART NAME":"PM SHRI KHANAMUKH HSS SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":99,"PART NAME":"BALIGAON MIRI ME SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":100,"PART NAME":"PM SHRI KHANAMUKH HSS SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":101,"PART NAME":"PM SHRI KHANAMUKH HSS SCHOOL(AUDITORIUM)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":102,"PART NAME":"GANDHIJI L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":103,"PART NAME":"GANDHIJI L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":104,"PART NAME":"NO. 1 CHILONI LP SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":105,"PART NAME":"GHORAMARI HATKHULA L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":106,"PART NAME":"NO 2 SILANI PRIMARY SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":107,"PART NAME":"NO 2 CHILONI LP SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":108,"PART NAME":"CHILONI NEPALI L P SCHOOL ( EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":109,"PART NAME":"CHILONI NEPALI L P SCHOOL ( WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":110,"PART NAME":"RANGAJAN M.V. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":111,"PART NAME":"RANGAJAN M.V. SCHOOL (MIDDLE)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":112,"PART NAME":"RANGAJAN M.V. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":113,"PART NAME":"CHIRUWANI L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":114,"PART NAME":"1 NO AKABASTI L.P. SCHOOL (NORTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":115,"PART NAME":"NO. 1 AKABASTI MIRI LPS ANGANWADI CENTRE","Name":"PRONOY MILI","Camera Done":""},{"PART NO":116,"PART NAME":"NO.1 AKABASTI MIRI L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":117,"PART NAME":"NO.1 AKABASTI L.P. SCHOOL (SOUTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":118,"PART NAME":"NO.1 AKABASTI L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":119,"PART NAME":"NO. 1 GUDAMGHAT L.P. SCHOOL (EAST)","Name":"ABHIJIT","Camera Done":""},{"PART NO":120,"PART NAME":"NO. 1 GUDAMGHAT L.P. SCHOOL (MIDDLE)","Name":"ABHIJIT ","Camera Done":""},{"PART NO":121,"PART NAME":"NO. 1 GUDAMGHAT L.P. SCHOOL (WEST)","Name":"ABHIJIT","Camera Done":""},{"PART NO":122,"PART NAME":"GUDAMGHAT MIRI L.P. SCHOOL (EAST)","Name":"ABHIJIT ","Camera Done":""},{"PART NO":123,"PART NAME":"GUDAMGHAT MIRI L.P. SCHOOL (WEST)","Name":"ABHIJIT","Camera Done":""},{"PART NO":124,"PART NAME":"BAMGAON PURONA HATKHULA L.P. SCHOOL","Name":"ABHIJIT","Camera Done":""},{"PART NO":125,"PART NAME":"BAMGAON T.G L.P. SCHOOL","Name":"ABHIJIT","Camera Done":""},{"PART NO":126,"PART NAME":"BOKAGAON L.P. SCHOOL","Name":"ABHIJIT","Camera Done":""},{"PART NO":127,"PART NAME":"NAHARANI TG L.P. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":128,"PART NAME":"NAHARANI T E MODEL HIGH SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":129,"PART NAME":"NAHARANI T E MODEL HIGH SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":130,"PART NAME":"AMARIBARI M E SCHOOL (EAST)","Name":"ABHIJIT","Camera Done":""},{"PART NO":131,"PART NAME":"AMARIBARI M E SCHOOL (WEST)","Name":"ABHIJIT","Camera Done":""},{"PART NO":132,"PART NAME":"AMARIBARI T.E. LABOUR CLUB","Name":"ABHIJIT","Camera Done":""},{"PART NO":133,"PART NAME":"AMARIBARI T.E. OFFICE","Name":"ABHIJIT","Camera Done":""},{"PART NO":134,"PART NAME":"NAGAPATHAR L.P. SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":135,"PART NAME":"NAMGAON TG L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":136,"PART NAME":"NAMGAON TG L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":137,"PART NAME":"MAHATMA GANDHI M.E. SCHOOL (VENTURE)","Name":"ABHIJIT","Camera Done":""},{"PART NO":138,"PART NAME":"ADABARI TG L.P. SCHOOL","Name":"ABHIJIT","Camera Done":""},{"PART NO":139,"PART NAME":"ADABARI T.E. LABOUR CLUB","Name":"ABHIJIT","Camera Done":""},{"PART NO":140,"PART NAME":"NEW ADABARI TG L.P. SCHOOL","Name":"ABHIJIT","Camera Done":""},{"PART NO":141,"PART NAME":"NEW ADABARI T.E. CRECHE HOUSE","Name":"ABHIJIT","Camera Done":""},{"PART NO":142,"PART NAME":"MAHATMA GANDHI M.E. SCHOOL (VENTURE)","Name":"ABHIJIT","Camera Done":""},{"PART NO":143,"PART NAME":"HAHCHARA TG L.P. SCHOOL (NORTH)","Name":"ABHIJIT","Camera Done":""},{"PART NO":144,"PART NAME":"HAHCHARA TG L.P. SCHOOL (SOUTH)","Name":"ABHIJIT","Camera Done":""},{"PART NO":145,"PART NAME":"HAHCHARA T.E. CLUB HOUSE","Name":"ABHIJIT","Camera Done":""},{"PART NO":146,"PART NAME":"HAHCHARA T.E. ANGANWADI CENTRE","Name":"ABHIJIT","Camera Done":""},{"PART NO":147,"PART NAME":"KERABASTI L.P. SCHOOL (EAST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":148,"PART NAME":"KERABASTI L.P. SCHOOL (WEST)","Name":"ABHISEKH","Camera Done":""},{"PART NO":149,"PART NAME":"NO. 1 NAHARANI GRANT L.P. SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":150,"PART NAME":"SESSA T.E. CLUB HOUSE","Name":"ABHISEKH","Camera Done":""},{"PART NO":151,"PART NAME":"SESSA T.G. L.P. SCHOOL (NORTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":152,"PART NAME":"SESSA 12 NO (4) L P SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":153,"PART NAME":"SESSA T.G L.P. SCHOOL (SOUTH)","Name":"ABHISEKH","Camera Done":""},{"PART NO":154,"PART NAME":"SESSA PANBARI L.P. SCHOOL","Name":"ABHISEKH","Camera Done":""},{"PART NO":155,"PART NAME":"SINGRIJAN T.E LAB. CLUB HOUSE","Name":"PRONOY MILI","Camera Done":""},{"PART NO":156,"PART NAME":"SINGRIJAN T.G L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":157,"PART NAME":"SARU KACHAMARI LP SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":158,"PART NAME":"DURRUNG T.E STAFF CLUB HOUSE","Name":"PRONOY MILI","Camera Done":""},{"PART NO":159,"PART NAME":"KATHALGURI L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":160,"PART NAME":"KATHALGURI L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":161,"PART NAME":"KATHALGURI BAGAN STAFF CLUB HOUSE","Name":"PRONOY MILI","Camera Done":""},{"PART NO":162,"PART NAME":"BINDUKURI HIGHER SECONDARY SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":163,"PART NAME":"BINDUKURI T. E. STAFF CLUB HOUSE","Name":"PRONOY MILI","Camera Done":""},{"PART NO":164,"PART NAME":"BINDUKURI BAGAN L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":165,"PART NAME":"BINDUKURI BAGAN L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":166,"PART NAME":"SOLA GOVT. JR. BASIC SCHOOL (NORTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":167,"PART NAME":"SOLA GOVT.JR. BASIC SCHOOL (SOUTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":168,"PART NAME":"DHEKIDAL GOVT. JR. BASIC SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":169,"PART NAME":"DHEKIDAL GOVT. JR. BASIC SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":170,"PART NAME":"SARUPATGAON L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":171,"PART NAME":"BORPATGAON M.V. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":172,"PART NAME":"HEM BARUAH HS SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":173,"PART NAME":"HEM BARUAH HS SCHOOL (SOUTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":174,"PART NAME":"HEM BARUAH HS SCHOOL (NORTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":175,"PART NAME":"HEM BARUAH HS SCHOOL (MIDDLE)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":176,"PART NAME":"ROUMARI M. V. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":177,"PART NAME":"ROUMARI M. V. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":178,"PART NAME":"RANGAJAN MIRI L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":179,"PART NAME":"RANGAJAN G.P. OFFICE","Name":"PRONOY MILI","Camera Done":""},{"PART NO":180,"PART NAME":"KACHUBIL L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":181,"PART NAME":"KACHUBIL L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":182,"PART NAME":"BARGHULI LP SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":183,"PART NAME":"SILGHAGARI L.P. SCHOOL (NORTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":184,"PART NAME":"SILGHAGARI L.P. SCHOOL (SOUTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":185,"PART NAME":"BAPUJI L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":186,"PART NAME":"BERAJAN L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":187,"PART NAME":"RAJGARH LP SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":188,"PART NAME":"RAJGARH LP SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":189,"PART NAME":"PUNGPANI LP SCHOOL(EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":190,"PART NAME":"PUNGPANI LP SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":191,"PART NAME":"TINGHARIA L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":192,"PART NAME":"SONABIL T.E. CLUB HOUSE","Name":"PRONOY MILI","Camera Done":""},{"PART NO":193,"PART NAME":"SONABIL T.G. L.P. SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":194,"PART NAME":"BORATI L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":195,"PART NAME":"BORATI L.P. SCHOOL (MIDDLE)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":196,"PART NAME":"GELAPUKHURI L P SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":197,"PART NAME":"BORATI L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":198,"PART NAME":"MALIJAN L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":199,"PART NAME":"MALIJAN L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":200,"PART NAME":"MALIJAN L.P. SCHOOL (NORTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":201,"PART NAME":"MALIJAN L.P. SCHOOL (SOUTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":202,"PART NAME":"MANSIRI HIGH SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":203,"PART NAME":"MANSIRI HIGH SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":204,"PART NAME":"SINGITALI L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":205,"PART NAME":"SINGITALI L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":206,"PART NAME":"PACHIM SINGITALI L P SCHOOL","Name":"PRONOY MILI","Camera Done":""},{"PART NO":207,"PART NAME":"KHALIHAMARI L.P. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":208,"PART NAME":"KHALIHAMARI L.P. SCHOOL (SOUTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":209,"PART NAME":"KHALIHAMARI L.P. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":210,"PART NAME":"KABILABAD H. E. SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":211,"PART NAME":"KABILABAD H. E. SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":212,"PART NAME":"61 NO. BORGHAT JB SCHOOL (NORTH)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":213,"PART NAME":"JARONI L P SCHOOL (EAST)","Name":"PRONOY MILI","Camera Done":""},{"PART NO":214,"PART NAME":"JARONI LP SCHOOL (WEST)","Name":"PRONOY MILI","Camera Done":""}];
+
+// ─── LOCALSTORAGE PERSISTENCE ────────────────────────────────────────────────
+const STORAGE_KEY = 'rangapara_camera_status';
+
+function saveState() {
+  const state = {};
+  data.forEach(r => { state[r.partNo] = r.done; });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+// Normalize names (trim) and create state map
+const data = RAW.map(r => ({
+  partNo: r['PART NO'],
+  partName: r['PART NAME'],
+  name: r['Name'].trim(),
+  done: r['Camera Done'] === 'Done' || r['Camera Done'] === true
+}));
+
+// Restore saved state from localStorage (overrides RAW defaults)
+(function restoreState() {
+  const saved = loadState();
+  if (!saved) return;
+  data.forEach(r => {
+    if (r.partNo in saved) r.done = saved[r.partNo];
+  });
+})();
+
+let activeWorker = 'ALL';
+
+// ─── WORKER INFO ─────────────────────────────────────────────────────────────
+const workerNames = ['ALL', ...new Set(data.map(r => r.name))];
+
+function workerKey(name) {
+  return name.split(' ')[0].toUpperCase();
+}
+
+// ─── STATS ───────────────────────────────────────────────────────────────────
+function updateStats() {
+  const total = data.length;
+  const done = data.filter(r => r.done).length;
+  const pending = total - done;
+  const pct = total ? Math.round(done / total * 100) : 0;
+
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-done').textContent = done;
+  document.getElementById('stat-pending').textContent = pending;
+  document.getElementById('stat-pct').textContent = pct + '%';
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = `${done} / ${total} cameras installed`;
+
+  // Update worker tabs badges
+  workerNames.forEach(w => {
+    const tab = document.getElementById('tab-' + w);
+    if (!tab) return;
+    const rows = w === 'ALL' ? data : data.filter(r => r.name === w);
+    const doneCount = rows.filter(r => r.done).length;
+    const badge = tab.querySelector('.badge');
+    if (badge) badge.textContent = `${doneCount}/${rows.length}`;
+  });
+}
+
+// ─── WORKER TABS ─────────────────────────────────────────────────────────────
+function buildTabs() {
+  const container = document.getElementById('worker-tabs');
+  workerNames.forEach(w => {
+    const tab = document.createElement('button');
+    tab.className = 'worker-tab' + (w === 'ALL' ? ' active' : '');
+    tab.id = 'tab-' + w;
+    const rows = w === 'ALL' ? data : data.filter(r => r.name === w);
+    const doneCount = rows.filter(r => r.done).length;
+    tab.innerHTML = `<span>${w === 'ALL' ? '📋 All Workers' : '👤 ' + w}</span><span class="badge">${doneCount}/${rows.length}</span>`;
+    tab.onclick = () => {
+      activeWorker = w;
+      document.querySelectorAll('.worker-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderTable();
+    };
+    container.appendChild(tab);
+  });
+}
+
+// ─── FILTERED DATA ───────────────────────────────────────────────────────────
+function getFiltered() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  const st = document.getElementById('filter-status').value;
+  return data.filter(r => {
+    const matchWorker = activeWorker === 'ALL' || r.name === activeWorker;
+    const matchSearch = !q || r.partName.toLowerCase().includes(q) || String(r.partNo).includes(q);
+    const matchStatus = st === 'all' || (st === 'done' && r.done) || (st === 'pending' && !r.done);
+    return matchWorker && matchSearch && matchStatus;
+  });
+}
+
+// ─── TOGGLE ──────────────────────────────────────────────────────────────────
+function toggleDone(partNo) {
+  const row = data.find(r => r.partNo === partNo);
+  if (!row) return;
+  row.done = !row.done;
+  saveState();
+  updateStats();
+  renderTable();
+  showToast(row.done
+    ? `✅ #${partNo} marked as DONE`
+    : `❌ #${partNo} marked as PENDING`,
+    row.done ? 'green' : 'red'
+  );
+}
+
+function resetAllState() {
+  const workerLabel = activeWorker === 'ALL' ? 'ALL workers' : activeWorker;
+  if (!confirm(`Reset ALL cameras for ${workerLabel} back to PENDING? This cannot be undone.`)) return;
+  const scope = activeWorker === 'ALL' ? data : data.filter(r => r.name === activeWorker);
+  scope.forEach(r => r.done = false);
+  saveState();
+  updateStats();
+  renderTable();
+  showToast(`🗑 ${workerLabel} reset to PENDING`, 'red');
+}
+
+function markVisibleAs(isDone) {
+  const visible = getFiltered();
+  visible.forEach(r => r.done = isDone);
+  saveState();
+  updateStats();
+  renderTable();
+  const workerLabel = activeWorker === 'ALL' ? 'All' : activeWorker;
+  showToast(`${isDone ? '✅' : '❌'} ${visible.length} rows for ${workerLabel} marked ${isDone ? 'DONE' : 'PENDING'}`, isDone ? 'green' : 'red');
+}
+
+// ─── RENDER TABLE ────────────────────────────────────────────────────────────
+function renderTable() {
+  const filtered = getFiltered();
+  const tbody = document.getElementById('tbody');
+  const empty = document.getElementById('empty-state');
+
+  document.getElementById('row-count').textContent = `Showing ${filtered.length} of ${data.length} entries`;
+
+  const workerLabel = activeWorker === 'ALL' ? 'All Workers' : activeWorker;
+  document.getElementById('bulk-label').textContent = `Bulk Actions — ${workerLabel}:`;
+
+  const doneInView = filtered.filter(r => r.done).length;
+  document.getElementById('filtered-stats').textContent =
+    filtered.length ? `${doneInView} done · ${filtered.length - doneInView} pending` : '';
+
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = filtered.map(r => {
+    const wKey = workerKey(r.name);
+    return `<tr class="${r.done ? 'is-done' : ''}">
+      <td class="part-no">#${r.partNo}</td>
+      <td class="part-name">${r.partName}</td>
+      <td class="worker-name worker-${wKey}">${r.name}</td>
+      <td class="done-cell">
+        <button class="toggle-btn ${r.done ? 'done-btn' : ''}" onclick="toggleDone(${r.partNo})">
+          <span class="dot"></span>
+          ${r.done ? '<span class="done-tick">✓</span> DONE' : 'PENDING'}
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── EXPORT XLSX ─────────────────────────────────────────────────────────────
+function exportXLSX() {
+  const rows = data.map(r => ({
+    'PART NO': r.partNo,
+    'PART NAME': r.partName,
+    'Name': r.name,
+    'Camera Done': r.done ? 'Done' : ''
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 8 },
+    { wch: 55 },
+    { wch: 18 },
+    { wch: 14 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, 'RANGAPARA_CAMERA_LIST_UPDATED.xlsx');
+  showToast('⬇ XLSX downloaded successfully!', 'blue');
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = 'blue') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+buildTabs();
+updateStats();
+renderTable();
+</script>
+</body>
+</html>
